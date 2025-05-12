@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-TMDB_API_KEY = "YOUR_TMDB_API_KEY"  # Replace with your real TMDb API key
+TMDB_API_KEY = "7d86c51be1bfe3761bfe7cbecf1f62fb"  # Replace with your real TMDb API key
 
 BASE_URL = "https://api.themoviedb.org/3"
 
