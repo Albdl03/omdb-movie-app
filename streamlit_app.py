@@ -4,10 +4,11 @@ import requests
 API_KEY = "thewdb"  # Replace with your OMDb API key
 
 
-# === Search with combined filters ===
-def search_movies(title, actor_filter=None, year_filter=None):
+# === Combined search ===
+def search_movies(title_filter=None, actor_filter=None, year_filter=None):
+    query = title_filter or actor_filter or "a"  # fallback query to trigger OMDb search
     url = "http://www.omdbapi.com/"
-    params = {"s": title, "apikey": API_KEY}
+    params = {"s": query, "apikey": API_KEY}
     if year_filter:
         params["y"] = year_filter
 
@@ -22,15 +23,19 @@ def search_movies(title, actor_filter=None, year_filter=None):
         imdb_id = movie.get("imdbID")
         details = get_movie_details(imdb_id)
 
-        # Actor filter
+        # Apply filters
         if actor_filter:
             actors = details.get("Actors", "").lower()
             if actor_filter.lower() not in actors:
                 continue
 
-        # Year filter (stronger check, in case OMDb returns vague results)
-        if year_filter and details.get("Year") != year_filter:
-            continue
+        if title_filter:
+            if title_filter.lower() not in details.get("Title", "").lower():
+                continue
+
+        if year_filter:
+            if year_filter != details.get("Year"):
+                continue
 
         movies.append(details)
 
@@ -57,19 +62,23 @@ def show_movie_details(movie):
 st.set_page_config(page_title="🎥 OMDb Movie Explorer", layout="centered")
 st.title("🎥 OMDb Movie Explorer")
 
-st.markdown("Search for movies using **title**, optional **actor**, and **year** filters.")
+st.markdown("Search by **title**, **actor**, and/or **year**. You can leave any field empty.")
 
-# Input fields
-title_input = st.text_input("🎬 Title or keyword (required)")
+# Input fields (none are required)
+title_input = st.text_input("🎬 Title (optional)")
 actor_input = st.text_input("👤 Actor (optional, partial name allowed)")
 year_input = st.text_input("📅 Year (optional, e.g. 1999)")
 
-# Search
+# Search button
 if st.button("Search"):
-    if not title_input.strip():
-        st.warning("Please enter a movie title or keyword.")
+    if not (title_input.strip() or actor_input.strip() or year_input.strip()):
+        st.warning("Please enter at least one search criteria (title, actor, or year).")
     else:
-        results = search_movies(title_input, actor_input.strip(), year_input.strip())
+        results = search_movies(
+            title_filter=title_input.strip(),
+            actor_filter=actor_input.strip(),
+            year_filter=year_input.strip()
+        )
 
         if not results:
             st.error("No matching results found.")
