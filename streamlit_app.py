@@ -101,9 +101,9 @@ if st.button("Search Movies"):
             st.error("No matching results found.")
         else:
             st.markdown("---")
-            st.subheader("🎞️ Top 3 Results")
+            st.subheader("🎞️ Top 5 Results")
 
-            top_movies = movies[:3]
+            top_movies = movies[:5]
 
             for movie in top_movies:
                 details = get_movie_details(movie["id"])
