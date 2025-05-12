@@ -1,36 +1,49 @@
 import streamlit as st
 import requests
 
-# === CONFIG ===
-API_KEY = "thewdb"  # Replace with your personal OMDb API key
+API_KEY = "thewdb"  # Replace with your OMDb API key
 
-# === FUNCTION: Search by movie title ===
-def search_by_title(title):
+
+# === Search with combined filters ===
+def search_movies(title, actor_filter=None, year_filter=None):
     url = "http://www.omdbapi.com/"
     params = {"s": title, "apikey": API_KEY}
+    if year_filter:
+        params["y"] = year_filter
+
     res = requests.get(url, params=params)
     data = res.json()
-    return data.get("Search", []) if data.get("Response") == "True" else []
 
-# === FUNCTION: Get full movie details by IMDb ID ===
+    if data.get("Response") != "True":
+        return []
+
+    movies = []
+    for movie in data.get("Search", []):
+        imdb_id = movie.get("imdbID")
+        details = get_movie_details(imdb_id)
+
+        # Actor filter
+        if actor_filter:
+            actors = details.get("Actors", "").lower()
+            if actor_filter.lower() not in actors:
+                continue
+
+        # Year filter (stronger check, in case OMDb returns vague results)
+        if year_filter and details.get("Year") != year_filter:
+            continue
+
+        movies.append(details)
+
+    return movies
+
+
 def get_movie_details(imdb_id):
     url = "http://www.omdbapi.com/"
     params = {"i": imdb_id, "apikey": API_KEY}
     res = requests.get(url, params=params)
     return res.json()
 
-# === FUNCTION: Search by actor (partial match) ===
-def search_by_actor(actor_query):
-    all_results = search_by_title(actor_query)
-    filtered = []
-    for movie in all_results:
-        details = get_movie_details(movie["imdbID"])
-        actors = details.get("Actors", "").lower()
-        if actor_query.lower() in actors:
-            filtered.append(details)
-    return filtered
 
-# === FUNCTION: Show selected movie details ===
 def show_movie_details(movie):
     st.markdown(f"### 🎬 {movie.get('Title', 'N/A')} ({movie.get('Year', 'N/A')})")
     st.text(f"🎭 Genre: {movie.get('Genre', 'N/A')}")
@@ -39,33 +52,31 @@ def show_movie_details(movie):
     st.text(f"⭐ IMDB Rating: {movie.get('imdbRating', 'N/A')}")
     st.markdown(f"📝 **Plot**: {movie.get('Plot', 'N/A')}")
 
-# === Streamlit UI ===
+
+# === Streamlit App ===
 st.set_page_config(page_title="🎥 OMDb Movie Explorer", layout="centered")
 st.title("🎥 OMDb Movie Explorer")
 
-# Search type selection
-search_type = st.radio("Choose search type:", ["By Title", "By Actor"])
+st.markdown("Search for movies using **title**, optional **actor**, and **year** filters.")
 
-# Search query input
-query = st.text_input("Enter search query (e.g. 'Inception' or 'DiCaprio')")
+# Input fields
+title_input = st.text_input("🎬 Title or keyword (required)")
+actor_input = st.text_input("👤 Actor (optional, partial name allowed)")
+year_input = st.text_input("📅 Year (optional, e.g. 1999)")
 
-# Search button
+# Search
 if st.button("Search"):
-    if not query.strip():
-        st.warning("Please enter a search term.")
+    if not title_input.strip():
+        st.warning("Please enter a movie title or keyword.")
     else:
-        if search_type == "By Title":
-            results = search_by_title(query)
-        else:
-            results = search_by_actor(query)
+        results = search_movies(title_input, actor_input.strip(), year_input.strip())
 
         if not results:
-            st.error("No results found.")
+            st.error("No matching results found.")
         else:
             titles = [f"{movie.get('Title', 'N/A')} ({movie.get('Year', 'N/A')})" for movie in results]
             selected = st.selectbox("Select a movie to view details:", titles)
-            selected_index = titles.index(selected)
-            selected_movie = results[selected_index]
+            selected_movie = results[titles.index(selected)]
 
             st.markdown("---")
             show_movie_details(selected_movie)
