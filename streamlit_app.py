@@ -1,43 +1,43 @@
 import streamlit as st
 import requests
 
-API_KEY = "thewdb"  # Replace with your OMDb API key
+API_KEY = "thewdb"
 
 
-# === Combined search ===
-def search_movies(title_filter=None, actor_filter=None, year_filter=None):
-    query = title_filter or actor_filter or "a"  # fallback query to trigger OMDb search
-    url = "http://www.omdbapi.com/"
-    params = {"s": query, "apikey": API_KEY}
-    if year_filter:
-        params["y"] = year_filter
-
-    res = requests.get(url, params=params)
-    data = res.json()
-
-    if data.get("Response") != "True":
-        return []
-
+def search_movies(title_filter=None, actor_filter=None, year_filter=None, max_pages=5):
+    query = title_filter if title_filter else (actor_filter if actor_filter else "a")
     movies = []
-    for movie in data.get("Search", []):
-        imdb_id = movie.get("imdbID")
-        details = get_movie_details(imdb_id)
 
-        # Apply filters
-        if actor_filter:
-            actors = details.get("Actors", "").lower()
-            if actor_filter.lower() not in actors:
-                continue
+    for page in range(1, max_pages + 1):
+        url = "http://www.omdbapi.com/"
+        params = {"s": query, "apikey": API_KEY, "page": page}
+        res = requests.get(url, params=params)
+        data = res.json()
 
-        if title_filter:
-            if title_filter.lower() not in details.get("Title", "").lower():
-                continue
+        if data.get("Response") != "True":
+            break  # Stop if no more results
 
-        if year_filter:
-            if year_filter != details.get("Year"):
-                continue
+        for movie in data.get("Search", []):
+            imdb_id = movie.get("imdbID")
+            details = get_movie_details(imdb_id)
 
-        movies.append(details)
+            # Actor filter
+            if actor_filter:
+                actors = details.get("Actors", "").lower()
+                if actor_filter.lower() not in actors:
+                    continue
+
+            # Title filter (re-check if needed)
+            if title_filter:
+                if title_filter.lower() not in details.get("Title", "").lower():
+                    continue
+
+            # Year filter
+            if year_filter:
+                if year_filter != details.get("Year"):
+                    continue
+
+            movies.append(details)
 
     return movies
 
